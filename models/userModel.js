@@ -18,7 +18,8 @@ const userSchema = new Schema({
   password: {
     type: String,
     required: true
-  }
+  },
+  workspaceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
 });
 
 // Static method for signing up

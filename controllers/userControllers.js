@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const Workspace = require("../models/workspaceModel");
 const jwt = require("jsonwebtoken");
 
 const createToken = (_id) => {
@@ -17,7 +18,7 @@ const loginUser = async (req, res) => {
 
     res.status(200).json({ token: token });
   } catch (error) {
-    res.status(400).json({ error: error.message }); 
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -25,37 +26,53 @@ const signupUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
+    // Step 1: Create the user
     const user = await User.signup(name, email, password);
 
-    // Create a JWT token
+    // Step 2: Create a workspace for the user
+    const workspace = await Workspace.create({
+      ownerId: user._id,
+      sharedWith: [
+        {
+          userId: user._id,
+          permission: "edit", // Full access for the owner
+        },
+      ],
+      folderIds: [],
+      formIds: [],
+    });
+
+    // Step 3: Associate the workspace with the user
+    user.workspaceId = workspace._id;
+    await user.save();
+
+    // Step 4: Create a JWT token
     const token = createToken(user._id);
 
-    res.status(200).json({ token: token });
+    res.status(200).json({ token });
   } catch (error) {
-    res.status(400).json({ error: error.message }); 
+    res.status(400).json({ error: error.message });
   }
 };
 
 const getUserData = async (req, res) => {
-    const token = req.header('Authorization').replace('Bearer ', '');
-  
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication token required' });
-    }
-  
-    try {
-      const decoded = jwt.verify(token, process.env.SECRET);
-      const user = await User.findById(decoded._id).select('-password'); // Exclude password from the result
-  
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-  
-      res.json(user);
-    } catch (error) {
-      res.status(401).json({ error: 'Invalid or expired token' });
-    }
-  };
+  const token = req.header("Authorization")?.replace("Bearer ", "");
 
+  if (!token) {
+    return res.status(401).json({ error: "Authentication token required" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.SECRET);
+
+    const userId = decoded._id;
+
+    const user = await User.findById(userId).select("-password");
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
 
 module.exports = { loginUser, signupUser, getUserData };

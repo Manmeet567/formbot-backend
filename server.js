@@ -3,6 +3,9 @@ const cors = require("cors");
 require("dotenv").config();
 const mongoose = require("mongoose");
 const userRoutes = require("./routes/userRoutes");
+const formRoutes = require("./routes/formRoutes");
+const folderRoutes = require("./routes/folderRoutes");
+const workspaceRoutes = require("./routes/workspaceRoutes");
 
 const app = express();
 
@@ -20,12 +23,15 @@ app.use((req, res, next) => {
   console.log(req.path, req.method);
   next();
 });
- 
+
 app.use(express.json());
 app.get("/test-server", (req, res) => {
   res.send("Server is working");
 });
 app.use("/api/user", userRoutes);
+app.use("/api/form", formRoutes);
+app.use("/api/folder", folderRoutes);
+app.use('/api/workspace', workspaceRoutes);
 
 mongoose
   .connect(MONGODB_URI)
