@@ -32,12 +32,7 @@ const signupUser = async (req, res) => {
     // Step 2: Create a workspace for the user
     const workspace = await Workspace.create({
       ownerId: user._id,
-      sharedWith: [
-        {
-          userId: user._id,
-          permission: "edit", // Full access for the owner
-        },
-      ],
+      sharedWith: [],
       folderIds: [],
       formIds: [],
     });

@@ -87,17 +87,14 @@ const getUserWorkspaces = async (req, res) => {
   try {
     const objectIdUserId = new mongoose.Types.ObjectId(_id);
 
-    // Find workspaces owned by the user
     const ownedWorkspaces = await Workspace.find({
       ownerId: objectIdUserId,
     });
 
-    // Find workspaces shared with the user
     const sharedWorkspaces = await Workspace.find({
       "sharedWith.userId": objectIdUserId,
     });
 
-    // Combine owned and shared workspaces
     const allWorkspaces = {
       owned: ownedWorkspaces,
       shared: sharedWorkspaces,
