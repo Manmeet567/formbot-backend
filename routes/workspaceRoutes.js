@@ -1,11 +1,11 @@
 const express = require("express");
 const { shareWorkspaceByInvite, shareWorkspaceViaLink, getUserWorkspaces } = require("../controllers/workspaceControllers");
 const router = express.Router();
-const requireAuth = express.Router();
+const requireAuth = require('../middleware/requireAuth');
 
 router.use(requireAuth);
 
-router.get('/:id', getUserWorkspaces);
+router.get('/get-workspace', getUserWorkspaces);
 
 router.post('/share', shareWorkspaceByInvite);
 

@@ -1,29 +1,43 @@
-const Folder = require("../models/folderSchema");
+const Folder = require("../models/folderModel");
 const Workspace = require("../models/workspaceModel");
 
 const createFolder = async (req, res) => {
-  const { title, workspaceId } = req.body;
-
+  const { title } = req.body;
+  const { workspaceId } = req.params;
   try {
-    // Validate workspace existence
+    // Find the workspace by ID
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    // Create the folder
+    // Check if a folder with the same title already exists in the workspace
+    const existingFolder = await Folder.findOne({
+      _id: { $in: workspace.folderIds }, // Search in the workspace's folderIds
+      title: title, // Match by folder title
+    });
+
+    if (existingFolder) {
+      return res
+        .status(400)
+        .json({
+          error: "A folder with this name already exists in the workspace",
+        });
+    }
+
+    // Create a new folder
     const newFolder = new Folder({
       title,
       createdBy: req.user._id,
     });
     await newFolder.save();
 
-    // Add the folder ID to the workspace
     workspace.folderIds.push(newFolder._id);
     await workspace.save();
 
     res.status(201).json(newFolder);
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "Error creating folder" });
   }
 };

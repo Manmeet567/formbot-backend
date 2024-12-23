@@ -1,5 +1,5 @@
 const Form = require("../models/formModel");
-const Folder = require("../models/folderSchema");
+const Folder = require("../models/folderModel");
 const Workspace = require("../models/workspaceModel");
 
 const createForm = async (req, res) => {

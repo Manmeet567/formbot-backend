@@ -51,17 +51,8 @@ const signupUser = async (req, res) => {
 };
 
 const getUserData = async (req, res) => {
-  const token = req.header("Authorization")?.replace("Bearer ", "");
-
-  if (!token) {
-    return res.status(401).json({ error: "Authentication token required" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.SECRET);
-
-    const userId = decoded._id;
-
+    const userId = req.user._id;
     const user = await User.findById(userId).select("-password");
 
     res.status(200).json(user);

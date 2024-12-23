@@ -82,17 +82,25 @@ const shareWorkspaceViaLink = async (req, res) => {
 };
 
 const getUserWorkspaces = async (req, res) => {
-  const _id = req.params; 
+  const _id = req.user._id;
 
   try {
-    const objectIdUserId = new mongoose.Types.ObjectId(_id);
-
     const ownedWorkspaces = await Workspace.find({
-      ownerId: objectIdUserId,
+      ownerId: _id,
+    }).populate({
+      path: "folderIds",
+      populate: {
+        path: "formIds", 
+      },
     });
 
     const sharedWorkspaces = await Workspace.find({
-      "sharedWith.userId": objectIdUserId,
+      "sharedWith.userId": _id,
+    }).populate({
+      path: "folderIds",
+      populate: {
+        path: "formIds", 
+      },
     });
 
     const allWorkspaces = {

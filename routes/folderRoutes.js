@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const requireAuth = express.Router();
+const requireAuth = require('../middleware/requireAuth');
 const {
   createFolder,
   getFolder,
@@ -9,7 +9,7 @@ const {
 
 router.use(requireAuth);
 
-router.post("/create-folder", createFolder);
+router.post("/:workspaceId/create", createFolder);
 
 router.get("/:id", getFolder);
 
