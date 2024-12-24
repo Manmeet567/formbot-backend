@@ -5,16 +5,14 @@ const createFolder = async (req, res) => {
   const { title } = req.body;
   const { workspaceId } = req.params;
   try {
-    // Find the workspace by ID
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    // Check if a folder with the same title already exists in the workspace
     const existingFolder = await Folder.findOne({
-      _id: { $in: workspace.folderIds }, // Search in the workspace's folderIds
-      title: title, // Match by folder title
+      _id: { $in: workspace.folderIds }, 
+      title: title,
     });
 
     if (existingFolder) {

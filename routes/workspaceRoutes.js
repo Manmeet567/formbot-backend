@@ -5,7 +5,7 @@ const requireAuth = require('../middleware/requireAuth');
 
 router.use(requireAuth);
 
-router.get('/get-workspace', getUserWorkspaces);
+router.get('/:workspaceId/get-workspace', getUserWorkspaces);
 
 router.post('/share', shareWorkspaceByInvite);
 

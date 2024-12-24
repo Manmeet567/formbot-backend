@@ -27,26 +27,32 @@ const signupUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Step 1: Create the user
+    // Step 1: Register the new user
     const user = await User.signup(name, email, password);
 
-    // Step 2: Create a workspace for the user
+    // Step 2: Create a new workspace with the user as the owner
     const workspace = await Workspace.create({
       ownerId: user._id,
-      sharedWith: [],
       folderIds: [],
       formIds: [],
     });
 
-    // Step 3: Associate the workspace with the user
-    user.workspaceId = workspace._id;
+    user.workspaceAccess.push({
+      workspaceId: workspace._id,
+      permission: "edit",
+      ownerId: user._id,
+      ownerName: name,
+    });
+
     await user.save();
 
-    // Step 4: Create a JWT token
+    // Step 4: Create a token for the user
     const token = createToken(user._id);
 
+    // Step 5: Send the response with the token
     res.status(200).json({ token });
   } catch (error) {
+    console.error("Error during user signup:", error);
     res.status(400).json({ error: error.message });
   }
 };
@@ -67,21 +73,18 @@ const updateUser = async (req, res) => {
   const { name, email, oldPassword, newPassword } = req.body;
 
   try {
-    // Find the user by userId
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Update the name directly if it's provided
     if (name) {
       user.name = name;
+      user.workspaceAccess[0].ownerName = name;
     }
 
-    
     if (email && email !== user.email) {
-      // Check if another user has this email
       const emailExists = await User.findOne({ email, _id: { $ne: userId } });
       if (emailExists) {
         return res.status(400).json({ error: "Email is already in use" });
@@ -89,24 +92,20 @@ const updateUser = async (req, res) => {
       user.email = email;
     }
 
-    // Check if password is being updated
     if (oldPassword && newPassword) {
-      // Validate the old password
       const isMatch = await bcrypt.compare(oldPassword, user.password);
       if (!isMatch) {
         return res.status(400).json({ error: "Old password is incorrect" });
       }
 
-      // Hash the new password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(newPassword, salt);
       user.password = hashedPassword;
     }
 
-    // Save the updated user details
-    await user.save();
+    const userData = await user.save();
 
-    res.status(200).json({ message: "User updated successfully" });
+    res.status(200).json(userData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
