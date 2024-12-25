@@ -3,16 +3,17 @@ const Folder = require("../models/folderModel");
 const Workspace = require("../models/workspaceModel");
 
 const createForm = async (req, res) => {
-  const { title, fields, folderId, workspaceId } = req.body;
+  const { workspaceId, folderId } = req.params; // Params from the request
+  const { title } = req.body; // Form title from the request body
 
   try {
-    // Validate workspace existence
+    // Check if workspaceId is provided and valid
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    // Validate folder existence if folderId is provided
+    // Check if folderId is provided and valid (if folderId exists)
     if (folderId) {
       const folder = await Folder.findById(folderId);
       if (!folder) {
@@ -20,28 +21,67 @@ const createForm = async (req, res) => {
       }
     }
 
-    // Create the form
-    const newForm = new Form({
-      title,
-      fields,
-      folderId,
+    // Check if the form with the same title already exists in the workspace
+    const existingForm = await Form.findOne({
+      title: title,
+      workspaceId: workspaceId,
     });
-    await newForm.save();
 
-    // Add the form ID to the folder if folderId is provided
-    if (folderId) {
-      await Folder.findByIdAndUpdate(folderId, {
-        $push: { formIds: newForm._id },
+    if (existingForm) {
+      return res.status(400).json({
+        error: "A form with this title already exists in the workspace",
       });
     }
 
-    // Add the form ID to the workspace
+    // If no existing form, create a new form
+    const newForm = new Form({
+      createdBy: req.user._id,
+      folderId: folderId || null,
+      workspaceId: workspaceId,
+      title: title,
+      flow: [],
+    });
+
+    await newForm.save();
+
     workspace.formIds.push(newForm._id);
     await workspace.save();
 
     res.status(201).json(newForm);
   } catch (error) {
-    res.status(500).json({ error: "Error creating form" });
+    console.error("Error creating form:", error);
+    res.status(500).json({ error: "Server error, could not create form" });
+  }
+};
+
+const deleteForm = async (req, res) => {
+  const { formId } = req.params;
+
+  try {
+    // Find the form by its ID
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({ error: "Form not found" });
+    }
+
+    // Remove the form ID from the workspace's formIds array
+    const workspace = await Workspace.findById(form.workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    workspace.formIds = workspace.formIds.filter(
+      (id) => id.toString() !== formId
+    );
+    await workspace.save();
+
+    // Delete the form
+    await Form.findByIdAndDelete(formId);
+
+    res.status(200).json({ message: "Form deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting form:", error);
+    res.status(500).json({ error: "Server error, could not delete form" });
   }
 };
 
@@ -75,4 +115,4 @@ const submitForm = async (req, res) => {
   }
 };
 
-module.exports = { createForm, getForm, submitForm };
+module.exports = { createForm, deleteForm, getForm, submitForm };

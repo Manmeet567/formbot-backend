@@ -3,13 +3,16 @@ const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
 const {
   createForm,
+  deleteForm,
   getForm,
   submitForm,
 } = require("../controllers/formControllers");
 
 router.use(requireAuth);
 
-router.post("/create-form", createForm);
+router.post("/:workspaceId/:folderId?/create-form", createForm);
+
+router.delete("/:formId/delete-form", deleteForm);
 
 router.get("/:id", getForm);
 

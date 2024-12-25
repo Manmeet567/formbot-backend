@@ -10,14 +10,14 @@ const FormSchema = new mongoose.Schema({
   workspaceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Workspace",
-    default: null,
+    required:true,
   },
   title: { type: String, required: true },
   flow: [
     {
-      field: { type: String, required: true }, // Field type (e.g., text, number)
-      type: { type: String, enum: ["bubble", "input"], required: true }, // Only 'bubble' or 'input'
-      fieldValue: { type: mongoose.Schema.Types.Mixed, default: null }, // Default value is null
+      field: { type: String, required: true }, 
+      type: { type: String, enum: ["bubble", "input"], required: true }, 
+      fieldValue: { type: mongoose.Schema.Types.Mixed, default: null }, 
     },
   ],
   createdAt: { type: Date, default: Date.now },
