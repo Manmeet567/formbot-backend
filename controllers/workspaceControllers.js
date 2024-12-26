@@ -4,168 +4,49 @@ const Folder = require("../models/folderModel");
 const User = require("../models/userModel");
 const mongoose = require("mongoose");
 
-const shareWorkspaceByInvite = async (req, res) => {
-  const { workspaceId, userEmail, permission } = req.body;
-
-  if (!workspaceId || !userEmail || !permission) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
-
-  try {
-    const user = await User.findOne({ email: userEmail });
-
-    if (!user) {
-      return res.status(404).json({ error: "User does not exist" });
-    }
-
-    const workspace = await Workspace.findById(workspaceId);
-
-    if (!workspace) {
-      return res.status(404).json({ error: "Workspace not found" });
-    }
-
-    const alreadyShared = workspace.sharedWith.some(
-      (shared) => shared.userId.toString() === user._id.toString()
-    );
-
-    if (alreadyShared) {
-      return res
-        .status(400)
-        .json({ error: "Workspace already shared with this user" });
-    }
-
-    workspace.sharedWith.push({ userId: user._id, permission });
-    await workspace.save();
-
-    res.status(200).json({ message: "Workspace shared successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const shareWorkspaceViaLink = async (req, res) => {
-  const { workspaceId, token } = req.params;
-
-  try {
-    const decoded = jwt.verify(token, process.env.SECRET);
-
-    const userId = decoded._id;
-    const permission = decoded.permission;
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: "User does not exist" });
-    }
-
-    const workspace = await Workspace.findById(workspaceId);
-
-    if (!workspace) {
-      return res.status(404).json({ error: "Workspace not found" });
-    }
-
-    const alreadyShared = workspace.sharedWith.some(
-      (shared) => shared.userId.toString() === userId
-    );
-
-    if (alreadyShared) {
-      return res
-        .status(400)
-        .json({ error: "Workspace already shared with this user" });
-    }
-
-    workspace.sharedWith.push({ userId, permission });
-    await workspace.save();
-
-    res.status(200).json({ message: "Workspace shared successfully via link" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const getWorkspaces = async (req, res) => {
-  const workspaceAccess = req.body.workspaceAccess;
-
-  try {
-    const workspaceIds = workspaceAccess.map((access) => access.workspaceId);
-
-    // Fetch workspaces with owner details
-    const workspaces = await Workspace.aggregate([
-      { $match: { _id: { $in: workspaceIds.map(mongoose.Types.ObjectId) } } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "ownerId",
-          foreignField: "_id",
-          as: "ownerDetails",
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          "ownerDetails.name": 1,
-        },
-      },
-    ]);
-
-    // Format the response
-    const response = workspaces.map((workspace) => ({
-      workspaceId: workspace._id,
-      ownerName: workspace.ownerDetails[0]?.name || "Unknown",
-    }));
-
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching workspaces with owners:", error);
-    res.status(500).json({ error: "Failed to fetch workspaces" });
-  }
-};
-
-const getUserWorkspaces = async (req, res) => {
+const getAllWorkspaces = async (req, res) => {
   const userId = req.user._id;
-  const { workspaceId } = req.params;
 
   try {
-    const user = await User.findById(userId);
+    const workspaces = await Workspace.find({
+      $or: [{ ownerId: userId }, { "sharedWith.userId": userId }],
+    });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (!workspaces.length) {
+      return res
+        .status(404)
+        .json({ error: "No workspaces found for the user" });
     }
 
-    const accessibleWorkspaces = user.workspaceAccess.map((access) =>
-      access.workspaceId.toString()
+    const transformedWorkspaces = workspaces.map((workspace) => {
+      const isOwner = workspace.ownerId.toString() === userId.toString();
+      const sharedUser = workspace.sharedWith.find(
+        (shared) => shared.userId.toString() === userId.toString()
+      );
+
+      return {
+        ...workspace.toObject(),
+        permission: isOwner ? "edit" : sharedUser?.permission || "none", // Owner has "edit" permission
+      };
+    });
+
+    transformedWorkspaces.forEach((workspace) => {
+      delete workspace.sharedWith;
+    });
+
+    const workspaceIds = transformedWorkspaces.map(
+      (workspace) => workspace._id
     );
 
-    if (workspaceId) {
-      if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-        return res.status(400).json({ error: "Invalid workspace ID" });
-      }
+    const folders = await Folder.find({ workspaceId: { $in: workspaceIds } });
 
-      if (!accessibleWorkspaces.includes(workspaceId)) {
-        return res
-          .status(403)
-          .json({ error: "Access denied to this workspace" });
-      }
-    }
-
-    const workspaceQuery = workspaceId
-      ? { _id: workspaceId }
-      : { _id: { $in: accessibleWorkspaces } };
-
-    const workspace = await Workspace.find(workspaceQuery);
-
-    if (!workspace || workspace.length === 0) {
-      return res.status(404).json({ error: "No workspaces found" });
-    }
-
-    const folderIds = workspace.flatMap((workspace) => workspace.folderIds);
-    const formIds = workspace.flatMap((workspace) => workspace.formIds);
-
-    const folders = await Folder.find({ _id: { $in: folderIds } });
-    const forms = await Form.find({ _id: { $in: formIds } });
+    const forms = await Form.find({
+      workspaceId: { $in: workspaceIds },
+      folderId: null,
+    });
 
     const response = {
-      workspace,
+      workspaces: transformedWorkspaces,
       folders,
       forms,
     };
@@ -173,12 +54,64 @@ const getUserWorkspaces = async (req, res) => {
     res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching workspaces:", error);
-    res.status(500).json({ error: "Failed to retrieve workspaces" });
+    res.status(500).json({ error: "Failed to retrieve workspace data" });
+  }
+};
+
+const getWorkspaceById = async (req, res) => {
+  const userId = req.user._id;
+  const { workspaceId } = req.params;
+
+  try {
+    // Fetch the workspace by ID
+    const workspace = await Workspace.findById(workspaceId);
+
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if the user is the owner of the workspace
+    const isOwner = workspace.ownerId.toString() === userId.toString();
+
+    // Check if the user is shared with the workspace
+    const sharedUser = workspace.sharedWith.find(
+      (shared) => shared.userId.toString() === userId.toString()
+    );
+
+    // If the user is neither the owner nor shared with, deny access
+    if (!isOwner && !sharedUser) {
+      return res.status(403).json({ error: "Access denied to this workspace" });
+    }
+
+    // Determine the permission level (edit for owner, shared user's permission, or "none")
+    const permission = isOwner ? "edit" : sharedUser?.permission || "none";
+
+    // Fetch folders related to this workspace
+    const folders = await Folder.find({ workspaceId });
+
+    // Fetch forms related to this workspace
+    const forms = await Form.find({ workspaceId });
+
+    // Prepare the transformed workspace object, excluding the sharedWith field
+    const transformedWorkspace = {
+      ...workspace.toObject(),
+      permission,
+    };
+    delete transformedWorkspace.sharedWith;
+
+    // Respond with workspace, folders, and forms in the required format
+    res.status(200).json({
+      workspace: transformedWorkspace,
+      folders: folders || [], // Return an empty array if no folders found
+      forms: forms || [], // Return an empty array if no forms found
+    });
+  } catch (error) {
+    console.error("Error fetching workspace:", error);
+    res.status(500).json({ error: "Failed to retrieve workspace" });
   }
 };
 
 module.exports = {
-  shareWorkspaceByInvite,
-  shareWorkspaceViaLink,
-  getUserWorkspaces
+  getAllWorkspaces,
+  getWorkspaceById,
 };

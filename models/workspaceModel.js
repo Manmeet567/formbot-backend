@@ -6,8 +6,16 @@ const WorkspaceSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Folder" }],
-  formIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Form" }],
+  ownerName: {
+    type: String,
+    required: true,
+  },
+  sharedWith: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      permission: { type: String, enum: ["view", "edit"] },
+    },
+  ],
 });
 
 const Workspace = mongoose.model("Workspace", WorkspaceSchema);

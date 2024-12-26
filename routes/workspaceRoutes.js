@@ -1,14 +1,15 @@
 const express = require("express");
-const { shareWorkspaceByInvite, shareWorkspaceViaLink, getUserWorkspaces } = require("../controllers/workspaceControllers");
+const {
+  getAllWorkspaces,
+  getWorkspaceById,
+} = require("../controllers/workspaceControllers");
 const router = express.Router();
-const requireAuth = require('../middleware/requireAuth');
+const requireAuth = require("../middleware/requireAuth");
 
 router.use(requireAuth);
 
-router.get('/:workspaceId/get-workspace', getUserWorkspaces);
+router.get("/get-all-workspaces", getAllWorkspaces);
 
-router.post('/share', shareWorkspaceByInvite);
-
-router.get('/share/:workspaceId/:token', shareWorkspaceViaLink);
+router.get("/:workspaceId/get-workspace", getWorkspaceById);
 
 module.exports = router;

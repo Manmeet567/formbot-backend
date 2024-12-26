@@ -7,21 +7,17 @@ const createForm = async (req, res) => {
   const { title } = req.body; // Form title from the request body
 
   try {
-    // Check if workspaceId is provided and valid
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    // Check if folderId is provided and valid (if folderId exists)
     if (folderId) {
       const folder = await Folder.findById(folderId);
       if (!folder) {
         return res.status(404).json({ error: "Folder not found" });
       }
     }
-
-    // Check if the form with the same title already exists in the workspace
     const existingForm = await Form.findOne({
       title: title,
       workspaceId: workspaceId,
@@ -33,7 +29,6 @@ const createForm = async (req, res) => {
       });
     }
 
-    // If no existing form, create a new form
     const newForm = new Form({
       createdBy: req.user._id,
       folderId: folderId || null,
@@ -43,9 +38,6 @@ const createForm = async (req, res) => {
     });
 
     await newForm.save();
-
-    workspace.formIds.push(newForm._id);
-    await workspace.save();
 
     res.status(201).json(newForm);
   } catch (error) {
@@ -58,24 +50,16 @@ const deleteForm = async (req, res) => {
   const { formId } = req.params;
 
   try {
-    // Find the form by its ID
     const form = await Form.findById(formId);
     if (!form) {
       return res.status(404).json({ error: "Form not found" });
     }
 
-    // Remove the form ID from the workspace's formIds array
     const workspace = await Workspace.findById(form.workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    workspace.formIds = workspace.formIds.filter(
-      (id) => id.toString() !== formId
-    );
-    await workspace.save();
-
-    // Delete the form
     await Form.findByIdAndDelete(formId);
 
     res.status(200).json({ message: "Form deleted successfully" });
@@ -115,4 +99,32 @@ const submitForm = async (req, res) => {
   }
 };
 
-module.exports = { createForm, deleteForm, getForm, submitForm };
+const getFormsByFolder = async (req, res) => {
+  const { folderId } = req.params;
+
+  try {
+    // Find forms that have the same folderId
+    const forms = await Form.find({ folderId });
+
+    // If no forms found, send a 404 response
+    if (!forms || forms.length === 0) {
+      return res.status(404).json({ error: "No forms found for this folder" });
+    }
+
+    // Return the found forms
+    return res.status(200).json({ forms });
+  } catch (error) {
+    // Handle errors and send a 500 response if something goes wrong
+    return res
+      .status(500)
+      .json({ error: "Server error", details: error.message });
+  }
+};
+
+module.exports = {
+  createForm,
+  deleteForm,
+  getForm,
+  submitForm,
+  getFormsByFolder,
+};

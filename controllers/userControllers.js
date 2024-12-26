@@ -27,29 +27,24 @@ const signupUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Step 1: Register the new user
     const user = await User.signup(name, email, password);
 
-    // Step 2: Create a new workspace with the user as the owner
     const workspace = await Workspace.create({
       ownerId: user._id,
-      folderIds: [],
-      formIds: [],
-    });
-
-    user.workspaceAccess.push({
-      workspaceId: workspace._id,
-      permission: "edit",
-      ownerId: user._id,
       ownerName: name,
+      sharedWith: [
+        {
+          userId: user._id,
+          permission: "edit",
+        },
+      ],
     });
 
+    user.workspaceAccess.push(workspace._id);
     await user.save();
 
-    // Step 4: Create a token for the user
     const token = createToken(user._id);
 
-    // Step 5: Send the response with the token
     res.status(200).json({ token });
   } catch (error) {
     console.error("Error during user signup:", error);
@@ -60,10 +55,25 @@ const signupUser = async (req, res) => {
 const getUserData = async (req, res) => {
   try {
     const userId = req.user._id;
+
     const user = await User.findById(userId).select("-password");
 
-    res.status(200).json(user);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const workspaces = await Workspace.find({
+      _id: { $in: user.workspaceAccess }, 
+    }).select("_id ownerName"); 
+
+    const userResponse = {
+      ...user.toObject(), 
+      workspaceAccess: workspaces, 
+    };
+
+    res.status(200).json(userResponse);
   } catch (error) {
+    console.error("Error fetching user data:", error);
     res.status(401).json({ error: "Invalid or expired token" });
   }
 };
@@ -79,9 +89,11 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (name) {
+    let nameChanged = false;
+
+    if (name && name !== user.name) {
       user.name = name;
-      user.workspaceAccess[0].ownerName = name;
+      nameChanged = true;
     }
 
     if (email && email !== user.email) {
@@ -103,10 +115,18 @@ const updateUser = async (req, res) => {
       user.password = hashedPassword;
     }
 
-    const userData = await user.save();
+    const updatedUser = await user.save();
 
-    res.status(200).json(userData);
+    if (nameChanged) {
+      await Workspace.findOneAndUpdate(
+        { ownerId: userId },
+        { ownerName: name }
+      );
+    }
+
+    res.status(200).json(updatedUser);
   } catch (error) {
+    console.error("Error updating user:", error);
     res.status(500).json({ error: error.message });
   }
 };

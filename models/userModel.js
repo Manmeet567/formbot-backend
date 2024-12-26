@@ -21,10 +21,8 @@ const userSchema = new Schema({
   },
   workspaceAccess: [
     {
-      workspaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Workspace" },
-      permission: { type: String, enum: ["view", "edit"], required: true },
-      ownerId: { type: mongoose.Schema.Types.ObjectId },
-      ownerName: { type: String },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
     },
   ],
 });
