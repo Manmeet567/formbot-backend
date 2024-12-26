@@ -13,6 +13,8 @@ router.use(requireAuth);
 
 router.post("/:workspaceId/:folderId?/create-form", createForm);
 
+router.get("/:workspaceId/:folderId?/:formId/get-form", getForm);
+
 router.delete("/:formId/delete-form", deleteForm);
 
 router.get("/:id", getForm);

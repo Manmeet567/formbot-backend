@@ -1,6 +1,7 @@
 const Form = require("../models/formModel");
 const Folder = require("../models/folderModel");
 const Workspace = require("../models/workspaceModel");
+const mongoose = require("mongoose");
 
 const createForm = async (req, res) => {
   const { workspaceId, folderId } = req.params; // Params from the request
@@ -70,13 +71,59 @@ const deleteForm = async (req, res) => {
 };
 
 const getForm = async (req, res) => {
+  const { workspaceId, folderId, formId } = req.params;
+  const userId = req.user._id; // Get the user's ID from the authenticated request
+
+  const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
   try {
-    const form = await Form.findById(req.params.id);
+    // Validate the provided IDs
+    if (
+      !isValidObjectId(workspaceId) ||
+      (folderId && !isValidObjectId(folderId)) ||
+      !isValidObjectId(formId)
+    ) {
+      return res.status(400).json({ error: "Invalid ID format in parameters" });
+    }
+
+    // Fetch the workspace to check if the user has access
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    // Check if the user has access to the workspace
+    const sharedWithEntry = workspace.sharedWith.find(
+      (entry) => entry.userId.toString() === userId.toString()
+    );
+    if (!sharedWithEntry) {
+      return res
+        .status(403)
+        .json({ error: "Access denied: User does not have permission" });
+    }
+
+    // Fetch the form by its ID
+    const form = await Form.findById(formId);
     if (!form) {
       return res.status(404).json({ error: "Form not found" });
     }
-    res.status(200).json(form);
+
+    // Validate the workspace and folder IDs in the form
+    if (
+      form.workspaceId.toString() !== workspaceId ||
+      (folderId && form.folderId?.toString() !== folderId)
+    ) {
+      return res.status(403).json({ error: "Access denied: ID mismatch" });
+    }
+
+    const responseForm = {
+      ...form.toObject(),
+      permission: sharedWithEntry.permission,
+    };
+
+    res.status(200).json(responseForm);
   } catch (error) {
+    console.error("Error fetching form:", error);
     res.status(500).json({ error: "Error fetching form" });
   }
 };
