@@ -72,12 +72,11 @@ const deleteForm = async (req, res) => {
 
 const getForm = async (req, res) => {
   const { workspaceId, folderId, formId } = req.params;
-  const userId = req.user._id; // Get the user's ID from the authenticated request
+  const userId = req.user._id;
 
   const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
   try {
-    // Validate the provided IDs
     if (
       !isValidObjectId(workspaceId) ||
       (folderId && !isValidObjectId(folderId)) ||
@@ -86,13 +85,11 @@ const getForm = async (req, res) => {
       return res.status(400).json({ error: "Invalid ID format in parameters" });
     }
 
-    // Fetch the workspace to check if the user has access
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found" });
     }
 
-    // Check if the user has access to the workspace
     const sharedWithEntry = workspace.sharedWith.find(
       (entry) => entry.userId.toString() === userId.toString()
     );
@@ -101,14 +98,13 @@ const getForm = async (req, res) => {
         .status(403)
         .json({ error: "Access denied: User does not have permission" });
     }
+    req.user.permission = sharedWithEntry.permission;
 
-    // Fetch the form by its ID
     const form = await Form.findById(formId);
     if (!form) {
       return res.status(404).json({ error: "Form not found" });
     }
 
-    // Validate the workspace and folder IDs in the form
     if (
       form.workspaceId.toString() !== workspaceId ||
       (folderId && form.folderId?.toString() !== folderId)
@@ -125,6 +121,31 @@ const getForm = async (req, res) => {
   } catch (error) {
     console.error("Error fetching form:", error);
     res.status(500).json({ error: "Error fetching form" });
+  }
+};
+
+const saveFlow = async (req, res) => {
+  const { formId } = req.params;
+  const { flow } = req.body;
+  console.log(req.user.permission);
+  try {
+    const form = await Form.findById(formId);
+
+    if (!form) {
+      return res.status(404).json({ error: "Form not found" });
+    }
+
+    form.flow = flow;
+
+    await form.save();
+
+    return res.status(200).json({
+      message: "Flow updated successfully",
+      updatedFlow: form.flow, 
+    });
+  } catch (error) {
+    console.error("Error updating form flow:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -150,7 +171,6 @@ const getFormsByFolder = async (req, res) => {
   const { folderId } = req.params;
 
   try {
-    // Find forms that have the same folderId
     const forms = await Form.find({ folderId });
 
     // If no forms found, send a 404 response
@@ -172,6 +192,7 @@ module.exports = {
   createForm,
   deleteForm,
   getForm,
+  saveFlow,
   submitForm,
   getFormsByFolder,
 };

@@ -85,7 +85,7 @@ const getWorkspaceById = async (req, res) => {
 
     // Determine the permission level (edit for owner, shared user's permission, or "none")
     const permission = isOwner ? "edit" : sharedUser?.permission || "none";
-
+    req.user.permission = permission;
     // Fetch folders related to this workspace
     const folders = await Folder.find({ workspaceId });
 
