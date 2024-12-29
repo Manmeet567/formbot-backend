@@ -63,12 +63,12 @@ const getUserData = async (req, res) => {
     }
 
     const workspaces = await Workspace.find({
-      _id: { $in: user.workspaceAccess }, 
-    }).select("_id ownerName"); 
+      _id: { $in: user.workspaceAccess },
+    }).select("_id ownerName");
 
     const userResponse = {
-      ...user.toObject(), 
-      workspaceAccess: workspaces, 
+      ...user.toObject(),
+      workspaceAccess: workspaces,
     };
 
     res.status(200).json(userResponse);
@@ -123,8 +123,16 @@ const updateUser = async (req, res) => {
         { ownerName: name }
       );
     }
+    const workspaces = await Workspace.find({
+      _id: { $in: user.workspaceAccess },
+    }).select("_id ownerName");
 
-    res.status(200).json(updatedUser);
+    const updatedResponse = {
+      ...updatedUser.toObject(),
+      workspaceAccess: workspaces,
+    };
+
+    res.status(200).json(updatedResponse);
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).json({ error: error.message });
