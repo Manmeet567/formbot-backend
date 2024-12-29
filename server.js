@@ -6,6 +6,7 @@ const userRoutes = require("./routes/userRoutes");
 const formRoutes = require("./routes/formRoutes");
 const folderRoutes = require("./routes/folderRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
+const responseRoutes = require("./routes/responseRoutes");
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/form", formRoutes);
 app.use("/api/folder", folderRoutes);
 app.use('/api/workspace', workspaceRoutes);
+app.use('/api/response', responseRoutes);
 
 mongoose
   .connect(MONGODB_URI)

@@ -20,6 +20,7 @@ const FormSchema = new mongoose.Schema({
       fieldValue: { type: mongoose.Schema.Types.Mixed, default: null }, 
     },
   ],
+  visitCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
 });
 

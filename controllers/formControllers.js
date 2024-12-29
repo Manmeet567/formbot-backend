@@ -98,7 +98,6 @@ const getForm = async (req, res) => {
         .status(403)
         .json({ error: "Access denied: User does not have permission" });
     }
-    req.user.permission = sharedWithEntry.permission;
 
     const form = await Form.findById(formId);
     if (!form) {
@@ -127,7 +126,6 @@ const getForm = async (req, res) => {
 const saveFlow = async (req, res) => {
   const { formId } = req.params;
   const { flow } = req.body;
-  console.log(req.user.permission);
   try {
     const form = await Form.findById(formId);
 
