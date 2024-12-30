@@ -9,7 +9,7 @@ const workspaceInviteSchema = new Schema({
     unique: true,
   },
   ownerName:{
-    type: mongoose.Schema.Types.String,
+    type: String,
     required: true,
   },
   workspaceId: {

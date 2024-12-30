@@ -6,10 +6,11 @@ const ResponseSchema = new mongoose.Schema({
     ref: "Form",
     required: true,
   },
-  answers: [
+  responses: [
     {
       field: { type: String, required: true },
-      response: { type: mongoose.Schema.Types.Mixed, required: true },
+      fieldValue: { type: String, required: true },
+      type: { type: String, required: true },
     },
   ],
   status: {
@@ -17,7 +18,7 @@ const ResponseSchema = new mongoose.Schema({
     enum: ["completed", "incomplete"],
     default: "incomplete",
   },
-  submittedAt: { type: Date, default: null },  
+  submittedAt: { type: Date, default: null },
 });
 
 const Response = mongoose.model("Response", ResponseSchema);
