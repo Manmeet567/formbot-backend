@@ -2,6 +2,8 @@ const Workspace = require("../models/workspaceModel");
 const Form = require("../models/formModel");
 const Folder = require("../models/folderModel");
 const User = require("../models/userModel");
+const WorkspaceInvite = require("../models/workspaceInvite");
+const { v4: uuidv4 } = require("uuid");
 const mongoose = require("mongoose");
 
 const getAllWorkspaces = async (req, res) => {
@@ -142,7 +144,7 @@ const addSharedUser = async (req, res) => {
     if (existingUser) {
       return res
         .status(400)
-        .json({ error: "User is already shared with this workspace." });
+        .json({ error: "User already has access to this workspace." });
     }
 
     // Add the user to the sharedWith array of the workspace
@@ -167,8 +169,100 @@ const addSharedUser = async (req, res) => {
   }
 };
 
+const generateInvite = async (req, res) => {
+  const { workspaceId } = req.params;
+  const { permission } = req.body;
+  const userId = req.user._id;
+
+  if (!permission) {
+    return res.status(400).json({ error: "Permission is required." });
+  }
+
+  try {
+    const inviteToken = uuidv4();
+
+    const expirationTime = new Date();
+    expirationTime.setHours(expirationTime.getHours() + 48);
+
+    const user = await User.findById(userId);
+
+    const invite = await WorkspaceInvite.create({
+      inviteToken,
+      ownerName: user?.name,
+      workspaceId,
+      permission,
+      expiresAt: expirationTime,
+    });
+
+    return res.status(201).json({ token: inviteToken });
+  } catch (error) {
+    console.error("Error generating invite:", error);
+    return res.status(500).json({ error: "Failed to generate invite." });
+  }
+};
+
+const validateInviteAndAddUser = async (req, res) => {
+  const { inviteToken } = req.params;
+  const userId = req.user._id;
+
+  try {
+    const invite = await WorkspaceInvite.findOne({ inviteToken });
+
+    if (!invite) {
+      return res.status(404).json({ error: "Invalid invite token." });
+    }
+
+    if (invite.expiresAt < new Date()) {
+      // If the invite is expired, delete it and send error
+      await WorkspaceInvite.deleteOne({ inviteToken });
+      return res.status(400).json({ error: "Invite link has expired." });
+    }
+
+    // Step 3: Find the workspace using workspaceId from the invite
+    const workspace = await Workspace.findById(invite.workspaceId);
+    if (!workspace) {
+      return res.status(404).json({ error: "Workspace not found." });
+    }
+
+    // Step 4: Check if user is already added to the workspace
+    const alreadyShared = workspace.sharedWith.some((user) =>
+      user.userId.equals(userId)
+    );
+
+    if (!alreadyShared) {
+      // Step 5: Add the user to the sharedWith array with permission
+      workspace.sharedWith.push({
+        userId: userId,
+        permission: invite.permission,
+      });
+      await workspace.save(); // Save the updated workspace
+    }
+
+    // Step 6: Find the user and add workspaceId to their workspaceAccess array
+    const user = await User.findById(userId);
+    if (!user.workspaceAccess.includes(invite.workspaceId)) {
+      user.workspaceAccess.push(invite.workspaceId);
+      await user.save(); // Save the updated user with workspaceAccess array
+    }
+
+    // await WorkspaceInvite.deleteOne({ inviteToken });
+
+    // Step 7: Return the workspaceId to the frontend
+    return res
+      .status(200)
+      .json({ ownerName: invite.ownerName, workspaceId: workspace._id });
+  } catch (error) {
+    console.error("Error processing invite:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while processing the invite." });
+  }
+};
+
 module.exports = {
   getAllWorkspaces,
   getWorkspaceById,
   addSharedUser,
+  generateInvite,
+  validateInviteAndAddUser,
 };
