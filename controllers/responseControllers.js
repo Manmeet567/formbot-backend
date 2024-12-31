@@ -24,18 +24,21 @@ const getFormFlow = async (req, res) => {
 };
 
 const updateResponse = async (req, res) => {
-  const { responseId, formId, responses } = req.body;
+  const { responseId, formId, responses, isSubmitted } = req.body;
 
   try {
     let response;
+    const status = isSubmitted ? "completed" : "incomplete"; // Determine the status based on isSubmitted
 
-    // If responseId is provided, find the existing response document and update it
     if (responseId) {
+      // Update existing response
       response = await Response.findByIdAndUpdate(
         responseId,
         {
           $set: {
-            responses, // Update the responses array
+            responses,
+            status, 
+            submittedAt: Date.now() 
           },
         },
         { new: true }
@@ -48,6 +51,8 @@ const updateResponse = async (req, res) => {
       response = new Response({
         formId,
         responses,
+        status, 
+        submittedAt:Date.now()
       });
 
       await response.save();
