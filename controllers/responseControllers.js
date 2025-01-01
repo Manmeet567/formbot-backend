@@ -37,8 +37,8 @@ const updateResponse = async (req, res) => {
         {
           $set: {
             responses,
-            status, 
-            submittedAt: Date.now() 
+            status,
+            submittedAt: Date.now(),
           },
         },
         { new: true }
@@ -51,8 +51,8 @@ const updateResponse = async (req, res) => {
       response = new Response({
         formId,
         responses,
-        status, 
-        submittedAt:Date.now()
+        status,
+        submittedAt: Date.now(),
       });
 
       await response.save();
@@ -68,4 +68,23 @@ const updateResponse = async (req, res) => {
   }
 };
 
-module.exports = { getFormFlow, updateResponse };
+const getAllResponses = async (req, res) => {
+  const { formId } = req.params;
+
+  try {
+    const responses = await Response.find({ formId });
+
+    if (responses.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No responses found for this form." });
+    }
+
+    return res.status(200).json(responses);
+  } catch (error) {
+    console.error("Error fetching responses:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+module.exports = { getFormFlow, updateResponse, getAllResponses };
