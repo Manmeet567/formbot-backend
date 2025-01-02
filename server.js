@@ -7,7 +7,6 @@ const formRoutes = require("./routes/formRoutes");
 const folderRoutes = require("./routes/folderRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const responseRoutes = require("./routes/responseRoutes");
-const cron = require("node-cron");
 
 const app = express();
 
@@ -16,7 +15,7 @@ const PORT = process.env.PORT || 8000;
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://formbot-20c10.web.app/",
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
@@ -30,18 +29,6 @@ app.use(express.json());
 
 app.get("/test-server", (req, res) => {
   res.send("Server is working");
-});
-
-// to keep the web service active on render
-cron.schedule("*/14 * * * *", () => {
-  axios
-    .get("https://formbot-backend-z6fm.onrender.com/test-server")
-    .then(() => {
-      console.log("Ping Response:");
-    })
-    .catch((error) => {
-      console.error("Error pinging the server:", error);
-    });
 });
 
 app.use("/api/user", userRoutes);
