@@ -116,6 +116,7 @@ const addSharedUser = async (req, res) => {
   const { workspaceId } = req.params;
   const { email, permission } = req.body;
 
+  // Check if the permission is valid ('view' or 'edit')
   if (!["view", "edit"].includes(permission)) {
     return res
       .status(400)
@@ -137,26 +138,40 @@ const addSharedUser = async (req, res) => {
       return res.status(404).json({ error: "Workspace not found." });
     }
 
-    // Check if user is already shared with the workspace
+    // Check if the user already has access to the workspace
     const existingUser = workspace.sharedWith.find(
       (item) => item.userId.toString() === user._id.toString()
     );
+
+    // If the user exists, check the permission
     if (existingUser) {
+      // If the permission is the same, return the same 400 error
+      if (existingUser.permission === permission) {
+        return res
+          .status(400)
+          .json({ error: "User already has the same permission." });
+      }
+
+      // If the permission is different, update the permission
+      existingUser.permission = permission;
+
+      await workspace.save(); // Save the updated workspace with the new permission
+
       return res
-        .status(400)
-        .json({ error: "User already has access to this workspace." });
+        .status(200)
+        .json({ message: "User permission updated successfully.", workspace });
     }
 
-    // Add the user to the sharedWith array of the workspace
+    // If the user doesn't exist in the sharedWith array, add the user with the given permission
     workspace.sharedWith.push({
       userId: user._id,
       permission,
     });
 
-    // Update the user's workspaceAccess array
+    // Add the workspaceId to the user's workspaceAccess array
     user.workspaceAccess.push(workspaceId);
 
-    // Save the updated workspace and user
+    // Save the workspace and user data
     await workspace.save();
     await user.save();
 
@@ -244,8 +259,6 @@ const validateInviteAndAddUser = async (req, res) => {
       user.workspaceAccess.push(invite.workspaceId);
       await user.save(); // Save the updated user with workspaceAccess array
     }
-
-    // await WorkspaceInvite.deleteOne({ inviteToken });
 
     // Step 7: Return the workspaceId to the frontend
     return res

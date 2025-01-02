@@ -1,6 +1,7 @@
 const Form = require("../models/formModel");
 const Folder = require("../models/folderModel");
 const Workspace = require("../models/workspaceModel");
+const Response = require("../models/responseModel");
 const mongoose = require("mongoose");
 
 const createForm = async (req, res) => {
@@ -64,6 +65,13 @@ const deleteForm = async (req, res) => {
     await Form.findByIdAndDelete(formId);
 
     res.status(200).json({ message: "Form deleted successfully" });
+
+    try {
+      await Response.deleteMany({ formId });
+      console.log(`All responses for form ${formId} have been deleted.`);
+    } catch (error) {
+      console.error(`Error deleting responses for form ${formId}:`, error);
+    }
   } catch (error) {
     console.error("Error deleting form:", error);
     res.status(500).json({ error: "Server error, could not delete form" });
@@ -125,7 +133,8 @@ const getForm = async (req, res) => {
 
 const saveFlow = async (req, res) => {
   const { formId } = req.params;
-  const { flow } = req.body;
+  const { flow, title } = req.body;
+
   try {
     const form = await Form.findById(formId);
 
@@ -133,16 +142,33 @@ const saveFlow = async (req, res) => {
       return res.status(404).json({ error: "Form not found" });
     }
 
-    form.flow = flow;
+    let updated = false;
+
+    // Only update the flow if it has changed
+    if (flow && JSON.stringify(flow) !== JSON.stringify(form.flow)) {
+      form.flow = flow;
+      updated = true;
+    }
+
+    // Only update the title if it has changed
+    if (title && title !== form.title) {
+      form.title = title;
+      updated = true;
+    }
+
+    if (!updated) {
+      return res.status(400).json({ error: "No changes to update" });
+    }
 
     await form.save();
 
     return res.status(200).json({
-      message: "Flow updated successfully",
-      updatedFlow: form.flow, 
+      message: "Flow and/or title updated successfully",
+      updatedFlow: form.flow,
+      updatedTitle: form.title,
     });
   } catch (error) {
-    console.error("Error updating form flow:", error);
+    console.error("Error updating form flow or title:", error);
     return res.status(500).json({ error: "Server error" });
   }
 };
