@@ -7,6 +7,7 @@ const formRoutes = require("./routes/formRoutes");
 const folderRoutes = require("./routes/folderRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
 const responseRoutes = require("./routes/responseRoutes");
+const cron = require("node-cron");
 
 const app = express();
 
@@ -26,14 +27,28 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
 app.get("/test-server", (req, res) => {
   res.send("Server is working");
 });
+
+// to keep the web service active on render
+cron.schedule("*/14 * * * *", () => {
+  axios
+    .get("https://formbot-backend-z6fm.onrender.com/test-server")
+    .then(() => {
+      console.log("Ping Response:");
+    })
+    .catch((error) => {
+      console.error("Error pinging the server:", error);
+    });
+});
+
 app.use("/api/user", userRoutes);
 app.use("/api/form", formRoutes);
 app.use("/api/folder", folderRoutes);
-app.use('/api/workspace', workspaceRoutes);
-app.use('/api/response', responseRoutes);
+app.use("/api/workspace", workspaceRoutes);
+app.use("/api/response", responseRoutes);
 
 mongoose
   .connect(MONGODB_URI)
