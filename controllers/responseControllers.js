@@ -72,7 +72,7 @@ const getAllResponses = async (req, res) => {
   const { formId } = req.params;
 
   try {
-    const responses = await Response.find({ formId });
+    const responses = await Response.find({ formId }).sort({ submittedAt: -1 });
 
     if (responses.length === 0) {
       return res
