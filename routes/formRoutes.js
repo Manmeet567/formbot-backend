@@ -5,9 +5,7 @@ const {
   createForm,
   deleteForm,
   getForm,
-  saveFlow,
-  submitForm,
-  getFormsByFolder,
+  saveFlow
 } = require("../controllers/formControllers");
 
 router.use(requireAuth);
@@ -21,9 +19,5 @@ router.put("/:formId/update-flow", saveFlow);
 router.delete("/:formId/delete-form", deleteForm);
 
 router.get("/:id", getForm);
-
-router.post("/:id/response", submitForm);
-
-router.get("/:folderId/get-forms", getFormsByFolder);
 
 module.exports = router;

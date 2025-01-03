@@ -163,6 +163,7 @@ const saveFlow = async (req, res) => {
     await form.save();
 
     return res.status(200).json({
+      _id:formId,
       message: "Flow and/or title updated successfully",
       updatedFlow: form.flow,
       updatedTitle: form.title,
@@ -173,50 +174,9 @@ const saveFlow = async (req, res) => {
   }
 };
 
-const submitForm = async (req, res) => {
-  const { responses } = req.body;
-
-  try {
-    const form = await Form.findById(req.params.id);
-    if (!form) {
-      return res.status(404).json({ error: "Form not found" });
-    }
-
-    form.responses.push(responses);
-    await form.save();
-
-    res.status(200).json({ message: "Response submitted", form });
-  } catch (error) {
-    res.status(500).json({ error: "Error submitting response" });
-  }
-};
-
-const getFormsByFolder = async (req, res) => {
-  const { folderId } = req.params;
-
-  try {
-    const forms = await Form.find({ folderId });
-
-    // If no forms found, send a 404 response
-    if (!forms || forms.length === 0) {
-      return res.status(404).json({ error: "No forms found for this folder" });
-    }
-
-    // Return the found forms
-    return res.status(200).json({ forms });
-  } catch (error) {
-    // Handle errors and send a 500 response if something goes wrong
-    return res
-      .status(500)
-      .json({ error: "Server error", details: error.message });
-  }
-};
-
 module.exports = {
   createForm,
   deleteForm,
   getForm,
   saveFlow,
-  submitForm,
-  getFormsByFolder,
 };

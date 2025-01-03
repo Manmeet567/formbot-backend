@@ -4,61 +4,6 @@ const Folder = require("../models/folderModel");
 const User = require("../models/userModel");
 const WorkspaceInvite = require("../models/workspaceInvite");
 const { v4: uuidv4 } = require("uuid");
-const mongoose = require("mongoose");
-
-const getAllWorkspaces = async (req, res) => {
-  const userId = req.user._id;
-
-  try {
-    const workspaces = await Workspace.find({
-      $or: [{ ownerId: userId }, { "sharedWith.userId": userId }],
-    });
-
-    if (!workspaces.length) {
-      return res
-        .status(404)
-        .json({ error: "No workspaces found for the user" });
-    }
-
-    const transformedWorkspaces = workspaces.map((workspace) => {
-      const isOwner = workspace.ownerId.toString() === userId.toString();
-      const sharedUser = workspace.sharedWith.find(
-        (shared) => shared.userId.toString() === userId.toString()
-      );
-
-      return {
-        ...workspace.toObject(),
-        permission: isOwner ? "edit" : sharedUser?.permission || "none", // Owner has "edit" permission
-      };
-    });
-
-    transformedWorkspaces.forEach((workspace) => {
-      delete workspace.sharedWith;
-    });
-
-    const workspaceIds = transformedWorkspaces.map(
-      (workspace) => workspace._id
-    );
-
-    const folders = await Folder.find({ workspaceId: { $in: workspaceIds } });
-
-    const forms = await Form.find({
-      workspaceId: { $in: workspaceIds },
-      folderId: null,
-    });
-
-    const response = {
-      workspaces: transformedWorkspaces,
-      folders,
-      forms,
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching workspaces:", error);
-    res.status(500).json({ error: "Failed to retrieve workspace data" });
-  }
-};
 
 const getWorkspaceById = async (req, res) => {
   const userId = req.user._id;
@@ -228,39 +173,33 @@ const validateInviteAndAddUser = async (req, res) => {
     }
 
     if (invite.expiresAt < new Date()) {
-      // If the invite is expired, delete it and send error
       await WorkspaceInvite.deleteOne({ inviteToken });
       return res.status(400).json({ error: "Invite link has expired." });
     }
 
-    // Step 3: Find the workspace using workspaceId from the invite
     const workspace = await Workspace.findById(invite.workspaceId);
     if (!workspace) {
       return res.status(404).json({ error: "Workspace not found." });
     }
 
-    // Step 4: Check if user is already added to the workspace
     const alreadyShared = workspace.sharedWith.some((user) =>
       user.userId.equals(userId)
     );
 
     if (!alreadyShared) {
-      // Step 5: Add the user to the sharedWith array with permission
       workspace.sharedWith.push({
         userId: userId,
         permission: invite.permission,
       });
-      await workspace.save(); // Save the updated workspace
+      await workspace.save(); 
     }
 
-    // Step 6: Find the user and add workspaceId to their workspaceAccess array
     const user = await User.findById(userId);
     if (!user.workspaceAccess.includes(invite.workspaceId)) {
       user.workspaceAccess.push(invite.workspaceId);
-      await user.save(); // Save the updated user with workspaceAccess array
+      await user.save();
     }
 
-    // Step 7: Return the workspaceId to the frontend
     return res
       .status(200)
       .json({ ownerName: invite.ownerName, workspaceId: workspace._id });
@@ -273,7 +212,6 @@ const validateInviteAndAddUser = async (req, res) => {
 };
 
 module.exports = {
-  getAllWorkspaces,
   getWorkspaceById,
   addSharedUser,
   generateInvite,

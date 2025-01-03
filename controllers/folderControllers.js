@@ -72,22 +72,5 @@ const getFolder = async (req, res) => {
   }
 };
 
-const addFormToFolder = async (req, res) => {
-  const { formId } = req.body;
 
-  try {
-    const folder = await Folder.findById(req.params.id);
-    if (!folder) {
-      return res.status(404).json({ error: "Folder not found" });
-    }
-
-    folder.formIds.push(formId);
-    await folder.save();
-
-    res.status(200).json(folder);
-  } catch (error) {
-    res.status(500).json({ error: "Error adding form to folder" });
-  }
-};
-
-module.exports = { createFolder, deleteFolder, getFolder, addFormToFolder };
+module.exports = { createFolder, deleteFolder, getFolder};
